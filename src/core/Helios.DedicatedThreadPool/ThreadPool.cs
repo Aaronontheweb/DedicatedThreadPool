@@ -32,12 +32,14 @@ namespace Helios.Concurrency
         public bool WasDisposed { get; private set; }
 
         private volatile bool _shutdownRequested;
+        private AutoResetEvent waitEvent = new AutoResetEvent(false);
 
         private void Shutdown()
         {
             _shutdownRequested = true;
         }
 
+        private volatile int threadsWaiting = 0;
         private volatile int numOutstandingThreadRequests = 0;
 
         public bool QueueUserWorkItem(WaitCallback work)
@@ -60,8 +62,9 @@ namespace Helios.Concurrency
                 finally
                 {
                     var heliosActionCallback = new ActionWorkItem(work, obj);
-                    WorkQueue.Enqueue(heliosActionCallback, true);
+                    WorkQueue.Enqueue(heliosActionCallback, false);
                     EnsureThreadRequested();
+                    waitEvent.Set();
                     success = true;
                 }
             }
@@ -97,7 +100,7 @@ namespace Helios.Concurrency
             {
                 //Set up thread-local data
                 ThreadPoolWorkQueueThreadLocals tl = workQueue.EnsureCurrentThreadHasQueue();
-                while ((Environment.TickCount - quantumStartTime) < Settings.QuantumMillis) //look for work until explicitly shut down or too many queue misses
+                while (true && !_shutdownRequested) //look for work until explicitly shut down
                 {
                     bool missedSteal = false;
                     workQueue.Dequeue(tl, out workItem, out missedSteal);
@@ -131,7 +134,9 @@ namespace Helios.Concurrency
 
                     if (workItem == null)
                     {
-                        return true;
+                        //bail if we haven't received data for longer than 30s
+                        if (!waitEvent.WaitOne(Settings.QuantumMillis))
+                            return true;
                     }
                     else //execute our work
                     {

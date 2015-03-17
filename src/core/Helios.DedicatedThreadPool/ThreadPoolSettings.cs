@@ -24,19 +24,21 @@ namespace Helios.Concurrency
         /// <summary>
         /// Default number of milliseconds we use
         /// </summary>
-        public const uint DefaultQuantumMillis = 30;
+        public const int DefaultQuantumMillis = 30;
 
         public DedicatedThreadPoolSettings(int numThreads) : this(numThreads, DefaultThreadType, DefaultQuantumMillis) { }
 
-        public DedicatedThreadPoolSettings(int numThreads, uint quantum) : this(numThreads, DefaultThreadType, quantum) { }
+        public DedicatedThreadPoolSettings(int numThreads, int quantum) : this(numThreads, DefaultThreadType, quantum) { }
 
-        public DedicatedThreadPoolSettings(int numThreads, ThreadType threadType, uint quantumMillis)
+        public DedicatedThreadPoolSettings(int numThreads, ThreadType threadType, int quantumMillis)
         {
             QuantumMillis = quantumMillis;
             ThreadType = threadType;
             NumThreads = numThreads;
             if(numThreads <= 0) 
                 throw new ArgumentOutOfRangeException("numThreads", string.Format("numThreads must be at least 1. Was {0}", numThreads));
+            if (quantumMillis <= 0)
+                throw new ArgumentOutOfRangeException("quantumMillis", string.Format("quantumMillis must be at least 1. Was {0}", quantumMillis));
         }
 
         /// <summary>
@@ -52,6 +54,6 @@ namespace Helios.Concurrency
         /// <summary>
         /// Minimum run interval for a thread before it's released
         /// </summary>
-        public uint QuantumMillis { get; private set; }
+        public int QuantumMillis { get; private set; }
     }
 }
